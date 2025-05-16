@@ -89,3 +89,59 @@ SELECT ROUND((total_purchases*100.00/total_visits),2) AS purchase_percentage
 | purchase_percentage |
 |---------------------|
 |     49.86  |
+
+What is the percentage of visits which view the checkout page but do not have a purchase event?
+
+```sql
+WITH user_events AS (SELECT u.user_id,
+                           e.cookie_id,
+	                       e.visit_id,
+	                       CASE WHEN page_id = 12 THEN 1
+	                            ELSE 0
+	                            END AS checkout_view,
+	                       CASE WHEN event_type = 3 THEN 1
+	                            ELSE 0
+	                            END AS purchase
+					FROM events AS e 
+					JOIN users AS u ON e.cookie_id = u.cookie_id),
+
+   total_events AS(SELECT visit_id,
+                          SUM(checkout_view) AS total_checkout,
+                          SUM(purchase) AS total_purchase
+                       FROM user_events
+                       GROUP BY visit_id),
+						
+   total_non_purchase AS (SELECT COUNT(visit_id) AS total_non 
+                             FROM total_events 
+                             WHERE total_checkout >0
+                             AND total_purchase<1),
+   
+    total_checkouts AS (SELECT COUNT(visit_id) AS total_checkouts
+                             FROM total_events
+                             WHERE total_checkout > 0)
+					  
+SELECT (total_non*100.0)/total_checkouts AS non_purchase_events
+          FROM total_non_purchase, total_checkouts
+```
+
+| non_purchase_events |
+|---------------------|
+| 15.5016642891107941 |
+
+What are the top 3 pages by number of views?
+
+```sql
+SELECT page_id,
+       COUNT(visit_id) AS total_visits
+    FROM events
+	GROUP BY page_id
+	ORDER BY total_visits DESC
+	LIMIT 3;
+```
+
+| page_id |  total_visits |
+|---------|---------------|
+| 2 |	4752 |
+| 9 |	2515 |
+| 10 |	2513 |
+
