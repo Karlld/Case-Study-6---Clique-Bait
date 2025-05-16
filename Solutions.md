@@ -1,5 +1,49 @@
 **1. Enterprise Relationship Diagram**
 
+Using the following code in dbdiagram.io an ERD can be created:
+
+```sql
+Table event_identifier {
+  event_type int
+  event_name varchar(13)
+}
+
+Table campaign_identifier {
+  campaign_id int
+  products varchar(3)
+  campaign_name varchar(33)
+  start_date timestamp
+  end_date timestamp
+}
+
+Table page_hierarchy {
+  page_id int
+  page_name varchar(14)
+  product_category varchar(9)
+  product_id int
+}
+
+Table users {
+  user_id int
+  cookie_id varchar(6)
+  start_date timestamp
+}
+
+Table events {
+  visit_id varchar(6)
+  cookie_id varchar(6)
+  page_id int
+  event_type int
+  sequence_number int
+  event_time timestamp
+}
+
+Ref: events.cookie_id > users.cookie_id
+Ref: events.page_id > page_hierarchy.page_id
+Ref: events.event_type > event_identifier.event_type
+```
+
+
 ![Clique_bait](https://github.com/user-attachments/assets/efb9d134-af10-4645-b453-71568852ffc1)
 
 
