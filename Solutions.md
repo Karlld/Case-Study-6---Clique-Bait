@@ -1,5 +1,6 @@
 **1. Enterprise Relationship Diagram**
 
+![Clique_bait](https://github.com/user-attachments/assets/efb9d134-af10-4645-b453-71568852ffc1)
 
 
 **2. Digital Analysis**
