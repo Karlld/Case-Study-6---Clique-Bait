@@ -243,5 +243,125 @@ WITH purchases AS (SELECT visit_id
 | Oyster |	726 |
 | Crab |	719 |
 
+**3. Product Funnel Analysis**
+   
+Using a single SQL query - create a new output table which has the following details:
+
+How many times was each product viewed?
+How many times was each product added to cart?
+How many times was each product added to a cart but not purchased (abandoned)?
+How many times was each product purchased?
+
+```sql
+WITH purchases AS (SELECT DISTINCT visit_id 
+                      FROM events
+                      WHERE event_type = 3),
+
+     abandons AS (SELECT DISTINCT visit_id
+                     FROM events
+                     WHERE event_type = 2
+                     AND visit_id NOT IN (SELECT visit_id FROM purchases)),
+
+    total_purchases AS (SELECT h.page_name,
+                               COUNT(e.event_type) AS total_purchases
+                           FROM events AS e
+                           JOIN purchases AS p ON p.visit_id = e.visit_id 
+                           JOIN page_hierarchy AS h ON h.page_id = e.page_id
+                           WHERE e.event_type = 2
+                           GROUP BY h.page_name),
+
+    total_abandons AS (SELECT h.page_name,
+                               COUNT(e.event_type) AS total_abandons
+                           FROM events AS e
+                           JOIN abandons AS a ON a.visit_id = e.visit_id 
+                           JOIN page_hierarchy AS h ON h.page_id = e.page_id
+                           WHERE e.event_type = 2
+                           GROUP BY h.page_name),
+	
+         adds_views AS (SELECT p.page_name,
+                               SUM(CASE WHEN event_type = 1 THEN 1 ELSE 0 END) AS views,
+                               SUM(CASE WHEN event_type = 2 THEN 1 ELSE 0 END) AS cart_add
+			  FROM events AS e
+			  JOIN page_hierarchy AS p ON p.page_id = e.page_id
+			  GROUP BY p.page_name)
+
+SELECT COALESCE(p.page_name, a.page_name) AS page_name,
+       views,
+       cart_add,
+       p.total_purchases,
+       a.total_abandons
+    FROM total_purchases AS p
+    FULL OUTER JOIN total_abandons AS a 
+    ON p.page_name = a.page_name
+    JOIN adds_views AS av ON av.page_name = p.page_name;
+```
+	
+| page_name |	views 	| cart_add |	total_purchases |  total_abandons |
+|-----------|-----------|----------|--------------------|-----------------|
+| Abalone |	1525 |	932 |	699 |	233 |
+| Black Truffle | 1469 | 	924 |	707 |	217 |
+| Crab |	1564 |	949 |	719 |	230 |
+| Kingfish |	1559 |	920 |	707 |	213 |
+| Lobster |	1547 |	968 |	754 |	214 |
+| Oyster |	1568 |	943 |	726 |	217 |
+| Russian Caviar | 1563 |	946 |	697 |	249 |
+| Salmon |	1559 |	938 |	711 |	227 |
+| Tuna |	1515 |	931 |	 697 |	234 |
+
+Additionally, create another table which further aggregates the data for the above points but this time for each product category instead of individual products.
+
+```sql
+WITH purchases AS (SELECT DISTINCT visit_id 
+                        FROM events
+                        WHERE event_type = 3),
+
+   abandons AS (SELECT DISTINCT visit_id
+                       FROM events
+                       WHERE event_type = 2
+                       AND visit_id NOT IN (SELECT visit_id FROM purchases)),
+
+   total_purchases AS (SELECT h.product_category,
+                             COUNT(e.event_type) AS total_purchases
+                         FROM events AS e
+                         JOIN purchases AS p ON p.visit_id = e.visit_id 
+                         JOIN page_hierarchy AS h ON h.page_id = e.page_id
+                         WHERE e.event_type = 2
+                         GROUP BY h.product_category),
+
+ total_abandons AS (SELECT h.product_category,
+                           COUNT(e.event_type) AS total_abandons
+                       FROM events AS e
+                       JOIN abandons AS a ON a.visit_id = e.visit_id 
+                       JOIN page_hierarchy AS h ON h.page_id = e.page_id
+                       WHERE e.event_type = 2
+                       GROUP BY h.product_category),
+
+    adds_views AS (SELECT p.product_category,
+                          SUM(CASE WHEN event_type = 1 THEN 1 ELSE 0 END) AS views,
+                          SUM(CASE WHEN event_type = 2 THEN 1 ELSE 0 END) AS cart_add
+                       FROM events AS e
+                       JOIN page_hierarchy AS p ON p.page_id = e.page_id
+                       GROUP BY p.product_category)
+
+SELECT COALESCE(p.product_category, a.product_category, av.product_category) AS product_category,
+       av.views,
+       av.cart_add,
+       p.total_purchases,
+       a.total_abandons
+   FROM total_purchases AS p
+   FULL OUTER JOIN total_abandons AS a 
+      ON p.product_category = a.product_category
+  FULL OUTER JOIN adds_views AS av 
+      ON COALESCE(p.product_category, a.product_category) = av.product_category
+  WHERE p.product_category NOTNULL;
+```
+
+| product_category |	views | cart_add | total_purchases | total_abandons |
+|------------------|----------|----------|-----------------|----------------|
+| Luxury |	3032 |	1870 |	1404 |	466 |
+| Shellfish |	6204 |	3792 |	2898 |	894 |
+| Fish |	4633 |	 2789 |	2115 |	674 |
+	
+
 
 
