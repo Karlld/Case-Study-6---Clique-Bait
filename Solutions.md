@@ -165,7 +165,7 @@ WITH user_events AS (SELECT u.user_id,
                              WHERE total_checkout > 0)
 					  
 SELECT (total_non*100.0)/total_checkouts AS non_purchase_events
-          FROM total_non_purchase, total_checkouts
+          FROM total_non_purchase, total_checkouts;
 ```
 
 | non_purchase_events |
@@ -361,7 +361,105 @@ SELECT COALESCE(p.product_category, a.product_category, av.product_category) AS 
 | Luxury |	3032 |	1870 |	1404 |	466 |
 | Shellfish |	6204 |	3792 |	2898 |	894 |
 | Fish |	4633 |	 2789 |	2115 |	674 |
-	
+
+Use your 2 new output tables - answer the following questions:
+
+Which product had the most views, cart adds and purchases?
+
+Oyster views = 1568
+Lobster adds = 968
+Lobster purchases = 754
+
+Which product was most likely to be abandoned?
+
+Russian caviar abandons = 249
+
+Which product had the highest view to purchase percentage?
+
+```sql  
+SELECT page_name,
+       ROUND((purchases*100.0/views),2) AS purchase_view_pcent
+	   FROM summary_table
+	   GROUP BY page_name, purchases, views
+	   ORDER BY purchase_view_pcent DESC
+	   LIMIT 1;
+```
+
+| page_name | purchase_view_pcent |
+|-----------|---------------------|
+| Lobster  |	48.74 |
+
+What is the average conversion rate from view to cart add?
+
+```sql  
+SELECT ROUND(SUM(cart_add)*100.0/SUM(views),2) as view_add_conversion
+       FROM summary_table;
+```
+	  
+| view_add_conversion |
+|---------------------|
+| 60.93 |
+
+What is the average conversion rate from cart add to purchase?
+
+```sql  
+SELECT ROUND(SUM(total_purchases)*100.0/SUM(cart_add),2) as add_purchase_conversion
+       FROM summary_table;
+```
+
+| add_purchase_conversion |
+|-------------------------|
+| 75.93  |
+
+**4. Campaigns Analysis**
+
+Generate a table that has 1 single row for every unique visit_id record and has the following columns:
+
+user_id
+visit_id
+visit_start_time: the earliest event_time for each visit
+page_views: count of page views for each visit
+cart_adds: count of product cart add events for each visit
+purchase: 1/0 flag if a purchase event exists for each visit
+campaign_name: map the visit to a campaign if the visit_start_time falls between the start_date and end_date
+impression: count of ad impressions for each visit
+click: count of ad clicks for each visit
+(Optional column) cart_products: a comma separated text value with products added to the cart sorted by the order they were added to the cart (hint: use the sequence_number)
+Use the subsequent dataset to generate at least 5 insights for the Clique Bait team - bonus: prepare a single A4 infographic that the team can use for their management reporting sessions, be sure to emphasise the most important points from your findings.
+
+```sql
+SELECT u.user_id,
+       e.visit_id,
+       COUNT(e.page_id) AS page_visits,
+       MIN(e.event_time) AS visit_start_time,
+       SUM(CASE WHEN e.event_type = 2 THEN 1 ELSE 0 END) AS cart_adds,
+       SUM(CASE WHEN e.event_type = 3 THEN 1 ELSE 0 END) AS purchase,
+       c.campaign_name,
+       SUM(CASE WHEN e.event_type = 4 THEN 1 ELSE 0 END) AS ad_impressions,
+       SUM(CASE WHEN e.event_type = 5 THEN 1 ELSE 0 END) AS ad_clicks,
+       STRING_AGG(CASE WHEN p.product_id NOTNULL AND e.event_type = 2 THEN p.page_name ELSE NULL END, ', ' ORDER BY e.sequence_number) AS 
+       purchase_items
+   FROM events AS e
+   JOIN users AS u ON u.cookie_id = e.cookie_id
+   JOIN page_hierarchy AS p ON p.page_id = e.page_id
+   LEFT JOIN campaign_identifier AS c ON e.event_time BETWEEN c.start_date AND c.end_date
+   GROUP BY e.visit_id, u.user_id, c.campaign_name
+   LIMIT 10;
+```
+
+| user_id | visit_id | page_visits | visit_start_time | cart_adds | purchase | campaign_name | ad_impressions | ad_clicks |	 purchase_items |
+|---------|----------|-------------|------------------|-----------|----------|---------------|----------------|-----------|-------|
+| 155	| 001597 |	19 |	2020-02-17 00:21:45.295141 |	6 |	 1 |	Half Off - Treat Your Shellf(ish) |	1 |	1 |	   Salmon, Russian Caviar, Black Truffle, Lobster, Crab, Oyster |
+| 243 |	002809 |	4 |	2020-03-13 17:49:55.45987 |	0 |	0 |	Half Off - Treat Your Shellf(ish) |	0 |	0 | |	
+| 78 |	0048b2 |	10 |	2020-02-10 02:59:51.335452 |	4 |	0 |	Half Off - Treat Your Shellf(ish) |	0 |	0 |	|Kingfish, Russian Caviar, Abalone, Lobster |
+| 228	 |004aaf |	9 |	2020-03-18 13:23:07.97394 | 2 |	1 |	  Half Off - Treat Your Shellf(ish) |	0 |	0 |	Tuna, Lobster |
+| 237 | 005fe7 |	14 |	 2020-04-02 18:14:08.257711 |	4 |	1 |		0 |	0 |	Kingfish, Black Truffle, Crab, Oyster |
+| 420 |	006a61 |	17 |	2020-01-25 20:54:14.630253 |	5 |	1 |	25% Off - Living The Lux Life |	1 |	1 |	Tuna, Russian Caviar, Black Truffle, Abalone, Crab |
+| 252	| 006e8c |	1 |	 2020-02-21 03:14:44.965938 |	0 |	0 |	Half Off - Treat Your Shellf(ish) |	0 |	0 | |	
+| 20	| 006f7f |	9 |	2020-02-23 01:36:34.786358 |	1 |	1 |	Half Off - Treat Your Shellf(ish) |	1 |	1 |	Tuna |
+| 436	| 007330 |	22 |	 2020-01-07 22:30:35.775068 |	8 |	1 |	BOGOF - Fishing For Compliments |	1 |	1 |	Salmon, Kingfish, Tuna, Russian Caviar, Black Truffle, Abalone, Lobster, Oyster |
+| 161	| 009e0e |	13 |	2020-02-20 06:17:50.907354 |	5 |	0 |	Half Off - Treat Your Shellf(ish) |	0 |	0 |	Kingfish, Tuna, Black Truffle, Abalone, Lobster |
+
 
 
 
