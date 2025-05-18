@@ -189,3 +189,59 @@ SELECT page_id,
 | 9 |	2515 |
 | 10 |	2513 |
 
+What is the number of views and cart adds for each product category?
+
+```sql
+WITH page_views AS(SELECT p.product_category,
+	   COUNT(e.event_type) AS total_views
+    FROM events AS e
+	JOIN page_hierarchy AS p ON p.page_id = e.page_id
+	WHERE event_type = 1 
+	GROUP BY product_category),
+
+ cart_adds AS (SELECT p.product_category,
+	   COUNT(e.event_type) AS total_carts
+    FROM events AS e
+	JOIN page_hierarchy AS p ON p.page_id = e.page_id
+	WHERE event_type = 2 
+	GROUP BY product_category)
+
+SELECT c.product_category,
+       total_views AS page_views,
+	   total_carts AS cart_adds
+  FROM page_views AS p
+  JOIN cart_adds AS c ON c.product_category = p.product_category
+  GROUP BY c.product_category, total_views, total_carts;
+```
+
+| product_category | page_views | cart_adds |
+|------------------|------------|-----------|
+| Fish |	4633 |	2789 |
+| Luxury |	3032 |	1870 |
+| Shellfish |	6204 |	3792 |
+
+What are the top 3 products by purchases?
+
+```sql
+WITH purchases AS (SELECT visit_id 
+                       FROM events
+                       WHERE event_type = 3)
+	SELECT h.page_name,
+	       COUNT(e.event_type) AS total_purchases
+		   FROM events AS e
+		   JOIN purchases AS p ON p.visit_id = e.visit_id 
+		   JOIN page_hierarchy AS h ON h.page_id = e.page_id
+		   WHERE event_type = 2
+		   GROUP BY h.page_name
+		   ORDER BY total_purchases DESC
+		   LIMIT 3;
+```
+
+| page_name |	total_purchases |
+|-----------|-------------------|
+| Lobster |	754 |
+| Oyster |	726 |
+| Crab |	719 |
+
+
+
