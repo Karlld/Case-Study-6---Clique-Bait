@@ -164,13 +164,13 @@ WITH user_events AS (SELECT u.user_id,
                              FROM total_events
                              WHERE total_checkout > 0)
 					  
-SELECT (total_non*100.0)/total_checkouts AS non_purchase_events
+SELECT ROUND((total_non*100.0)/total_checkouts,2) AS non_purchase_events
           FROM total_non_purchase, total_checkouts;
 ```
 
 | non_purchase_events |
 |---------------------|
-| 15.5016642891107941 |
+| 15.50 |
 
 What are the top 3 pages by number of views?
 
